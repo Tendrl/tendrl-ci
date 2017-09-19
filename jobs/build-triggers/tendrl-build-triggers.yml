@@ -109,6 +109,9 @@
             property-file: env.sh
             condition: ALWAYS
 
+      - email:
+          recipients: dahorak@redhat.com
+            
 
 - project:
     name: 'release'
