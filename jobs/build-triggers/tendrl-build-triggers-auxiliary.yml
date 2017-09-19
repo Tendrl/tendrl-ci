@@ -1,0 +1,215 @@
+---
+- job-template:
+    name: "tendrl-build-X-build_server-{project_name}-prepare"
+    display-name: 'Tendrl_build_server ({project_name}) prepare'
+    description: |
+      <b>Do not launch this job manually! It is used by other 'Tendrl build *' jobs.</b><br>
+      Maintainer: <a href="mailto:dahorak@redhat.com">Daniel Horak</a><br>
+      Team Contact: <a href="mailto:tendrl-devel@redhat.com">tendrl-devel</a><br><br>
+      JJB Code Location: <a href="https://github.com/Tendrl/tendrl-ci/tree/master/jobs">tendrl-ci</a><br>
+      Managed by Jenkins Job Builder. Do not edit via web.<br>
+    project-type: freestyle
+    defaults: global
+    disabled: false
+    concurrent: false
+    quiet-period: 0
+    block-downstream: false
+    block-upstream: false
+    scm:
+      - git:
+          url: 'https://github.com/usmqe/usmqe-centos-ci.git'
+          branches:
+            - "*/master"
+          basedir: usmqe-centos-ci
+          skip-tag: true
+          wipe-workspace: true
+
+    wrappers:
+      - ansicolor:
+          colormap: "xterm"
+      - timeout:
+          timeout: 30
+          abort: true
+          type: absolute
+    node: 'tendrl-ci-slave01'
+    builders:
+      - shell: |
+          #!/bin/bash -xe
+          # if build_server_{project_name}_status is empty, prepare build_server
+          if (( $(grep -v '^ *$' ${{HOME}}/build_server_{project_name}_status | wc -l) == 0)); then
+            echo "BUILDING" > ${{HOME}}/build_server_{project_name}_status
+            # Get machines from CentOS CI pool
+            cd ${{WORKSPACE}}/usmqe-centos-ci/ansible
+            ANSIBLE_FORCE_COLOR=true
+            ANSIBLE_DIR=${{WORKSPACE}}/usmqe-centos-ci/ansible
+            CICO_DIR=/usr/lib/python2.7/site-packages/cicoclient/ansible/
+            ansible-playbook -i ${{ANSIBLE_DIR}}/empty.hosts -vvv \
+              -e clustername=build_server_{project_name} -M ${{CICO_DIR}} \
+              ${{ANSIBLE_DIR}}/build_server-prepare.yml
+            echo "READY" > ${{HOME}}/build_server_{project_name}_status
+          fi
+
+
+- job-template:
+    name: "tendrl-build-X-build_server-{project_name}-teardown"
+    display-name: 'Tendrl_build_server ({project_name}) teardown'
+    description: |
+      <b>Do not launch this job manually! It is used by other 'Tendrl build *' jobs.</b><br>
+      Maintainer: <a href="mailto:dahorak@redhat.com">Daniel Horak</a><br>
+      Team Contact: <a href="mailto:tendrl-devel@redhat.com">tendrl-devel</a><br><br>
+      JJB Code Location: <a href="https://github.com/Tendrl/tendrl-ci/tree/master/jobs">tendrl-ci</a><br>
+      Managed by Jenkins Job Builder. Do not edit via web.<br>
+    parameters:
+      - string:
+          name: BUILD_HASH
+          default: ""
+          description: "Do not fill, will be configured automatically!"
+    project-type: freestyle
+    defaults: global
+    disabled: false
+    concurrent: false
+    quiet-period: 5
+    block-downstream: false
+    block-upstream: false
+    scm:
+      - git:
+          url: 'https://github.com/usmqe/usmqe-centos-ci.git'
+          branches:
+            - "*/master"
+          basedir: usmqe-centos-ci
+          skip-tag: true
+          wipe-workspace: true
+
+    wrappers:
+      - ansicolor:
+          colormap: "xterm"
+      - timeout:
+          timeout: 15
+          abort: true
+          type: absolute
+    node: 'tendrl-ci-slave01'
+    builders:
+      - shell: |
+          #!/bin/bash -xe
+          # cancel build server "reservation"
+          sed -i "/${{BUILD_HASH}}/d" ${{HOME}}/build_server_{project_name}_used_by
+          # if build_server_{project_name}_used_by is empty, we can safely return the server
+          if (( $(grep -v '^ *$' ${{HOME}}/build_server_{project_name}_used_by | wc -l) == 0)); then
+            # clean up build_server_{project_name}_status
+            echo > ${{HOME}}/build_server_{project_name}_status
+            # Return machines to CentOS CI pool
+            cd ${{WORKSPACE}}/usmqe-centos-ci/ansible
+            ANSIBLE_FORCE_COLOR=true
+            ANSIBLE_DIR=${{WORKSPACE}}/usmqe-centos-ci/ansible
+            CICO_DIR=/usr/lib/python2.7/site-packages/cicoclient/ansible/
+            ansible-playbook -i ${{ANSIBLE_DIR}}/empty.hosts -vvv \
+              -e clustername=build_server_{project_name} -M ${{CICO_DIR}} \
+              ${{ANSIBLE_DIR}}/centos-teardown.yml
+            # Make sure that all machines return to pool
+            cd ${{WORKSPACE}}/usmqe-centos-ci/ansible
+            ANSIBLE_DIR=${{WORKSPACE}}/usmqe-centos-ci/ansible
+            CICO_DIR=/usr/lib/python2.7/site-packages/cicoclient/ansible/
+            ansible-playbook -i ${{ANSIBLE_DIR}}/empty.hosts -vvv \
+              -e clustername=build_server_{project_name} -M ${{CICO_DIR}} \
+              ${{ANSIBLE_DIR}}/centos-inventory.yml
+            if grep -q RETURNED ${{HOME}}/build_server_{project_name}.hosts; then
+              exit 0;
+            else
+              echo "There are still machine for cluster build_server which should be returned to pool."
+              exit 1;
+            fi
+          fi
+
+
+- job-template:
+    name: "tendrl-build-0-{project_name}"
+    display-name: 'Tendrl build- ({project_name}) - BUILD ALL PACKAGES'
+    description: |
+      <b>Trigger build for all Tendrl packages from branch '{branch}'
+      (targeted to Copr repo '{target_repo}').</b><br>
+      Maintainer: <a href="mailto:dahorak@redhat.com">Daniel Horak</a><br>
+      Team Contact: <a href="mailto:tendrl-devel@redhat.com">tendrl-devel</a><br><br>
+      JJB Code Location: <a href="https://github.com/Tendrl/tendrl-ci/tree/master/jobs">tendrl-ci</a><br>
+      Managed by Jenkins Job Builder. Do not edit via web.<br>
+    project-type: freestyle
+    defaults: global
+    run_package_validation: false
+    disabled: false
+    concurrent: false
+    quiet-period: 0
+    block-downstream: false
+    block-upstream: false
+
+    wrappers:
+      - ansicolor:
+          colormap: "xterm"
+      - timeout:
+          timeout: 300
+          abort: true
+          type: absolute
+    node: 'tendrl-ci-slave01'
+    parameters:
+      - string:
+          name: BRANCH
+          default: "{branch}"
+          description: "Git branch name."
+      - string:
+          name: TARGET_REPO
+          default: "{target_repo}"
+          description: "Target copr repo name."
+      - bool:
+          name: RUN_PACKAGE_VALIDATION
+          default: "{obj:run_package_validation}"
+          description: "Run web tests? (it is not good idea to run API and web tests at once)"
+    builders:
+      - shell: |
+          #!/bin/bash -xe
+          echo "BRANCH: ${{BRANCH}}"
+          echo "TARGET_REPO: ${{TARGET_REPO}}"
+          # Prepare env.sh file
+          echo > ${{WORKSPACE}}/env.sh
+          echo "BRANCH=${{BRANCH}}" >> ${{WORKSPACE}}/env.sh
+          echo "TARGET_REPO=${{TARGET_REPO}}" >> ${{WORKSPACE}}/env.sh
+
+          echo "USM_CORE_REPO=https://copr-be.cloud.fedoraproject.org/results/{copr_user}/${{TARGET_REPO}}/epel-7-x86_64/" \
+            >> ${{WORKSPACE}}/env.sh
+          echo "USM_CORE_REPO_GPGKEY=https://copr-be.cloud.fedoraproject.org/results/{copr_user}/${{TARGET_REPO}}/pubkey.gpg" \
+            >> ${{WORKSPACE}}/env.sh
+
+          # prepare unique identifier for this build (BUILD_HASH)
+          export BUILD_HASH=$(mktemp -du "build-all-{target_repo}.XXXXXXXXXX")
+          echo "BUILD_HASH=${{BUILD_HASH}}" >> ${{WORKSPACE}}/env.sh
+          # "reserve" build server for this job
+          echo "${{BUILD_HASH}}" >> ${{HOME}}/build_server_{project_name}_used_by
+
+          # prepare building server (if not already reserved)
+      - conditional-step:
+          condition-kind: shell
+          condition-command: "(( $(grep -v '^ *$' $HOME/build_server_{project_name}_status | wc -l) == 0))"
+          on-evaluation-failure: dont-run
+          steps:
+            - trigger-builds:
+                - project: 'tendrl-build-X-build_server-{project_name}-prepare'
+                  block: true
+                  property-file: env.sh
+
+      - trigger-builds:
+          - project: '{obj:package_build_job_list}'
+            block: true
+            property-file: env.sh
+
+    publishers:
+      - trigger-parameterized-builds:
+          - project: 'tendrl-build-X-build_server-{project_name}-teardown'
+            property-file: env.sh
+            condition: ALWAYS
+
+      - conditional-publisher:
+          - condition-kind: shell
+            condition-command: "[[ \"$RUN_PACKAGE_VALIDATION\" == 'true' ]]"
+            on-evaluation-failure: dont-run
+            action:
+              - trigger-parameterized-builds:
+                  - project: 'tendrl-pkgval-X-{project_name}-prepare'
+                    property-file: env.sh
+                    condition: ALWAYS

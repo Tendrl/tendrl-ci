@@ -1,0 +1,201 @@
+---
+- job-template:
+    name: "tendrl-build-1-{project_name}-{package_name}"
+    display-name: 'Tendrl build: ({project_name}) - {package_name}'
+    description: |
+      <b>Job building Tendrl package '{package_name}' from branch '{branch}'
+      and pushing it to '{target_repo}'.</b><br>
+      Maintainer: <a href="mailto:dahorak@redhat.com">Daniel Horak</a><br>
+      Team Contact: <a href="mailto:tendrl-devel@redhat.com">tendrl-devel</a><br><br>
+      JJB Code Location: <a href="https://github.com/Tendrl/tendrl-ci/tree/master/jobs">tendrl-ci</a><br>
+      Managed by Jenkins Job Builder. Do not edit via web.<br>
+    project-type: freestyle
+    copr_config: '~/.config/copr'
+    defaults: global
+    disabled: false
+    concurrent: false
+    quiet-period: 0
+    block-downstream: false
+    block-upstream: false
+    node: 'tendrl-ci-slave01'
+    triggers: "{obj:triggers}"
+    scm: "{obj:scm}"
+    properties:
+      - github:
+          url: 'https://github.com/Tendrl/{package_name}/'
+    wrappers:
+      - timeout:
+          timeout: 60
+          abort: true
+          type: absolute
+    parameters:
+      - string:
+          name: BRANCH
+          default: "{branch}"
+          description: "Git branch name."
+      - string:
+          name: TARGET_REPO
+          default: "{target_repo}"
+          description: "Target copr repo name."
+    builders:
+      - shell: |
+          #!/bin/bash -xe
+          echo "BRANCH: ${{BRANCH}}"
+          echo "TARGET_REPO: ${{TARGET_REPO}}"
+          # prepare unique identifier for this build (BUILD_HASH)
+          export BUILD_HASH=$(mktemp -du "build-{target_repo}-tendrl-{package_name}.XXXXXXXXXX")
+          echo "BUILD_HASH=${{BUILD_HASH}}" > ${{WORKSPACE}}/env.sh
+          # "reserve" build server for this job
+          echo "${{BUILD_HASH}}" >> ${{HOME}}/build_server_{project_name}_used_by
+
+          # prepare building server (if not already reserved)
+      - conditional-step:
+          condition-kind: shell
+          condition-command: "(( $(grep -v '^ *$' $HOME/build_server_{project_name}_status | wc -l) == 0))"
+          on-evaluation-failure: dont-run
+          steps:
+            - trigger-builds:
+                - project: 'tendrl-build-X-build_server-{project_name}-prepare'
+                  block: true
+                  property-file: env.sh
+
+      - shell: |
+          #!/bin/bash -xe
+          # load environment file with BUILD_HASH
+          source ${{WORKSPACE}}/env.sh
+
+          # wait for build_server to be ready
+          until grep -q "READY" ${{HOME}}/build_server_{project_name}_status; do
+            sleep 10
+          done
+
+          # remote working directory
+          rwd="/tmp/${{BUILD_HASH}}"
+          # get build server hostname
+          build_server=$(grep -A1 '\[build_server\]' ${{HOME}}/build_server_{project_name}.hosts | tail -1)
+          # check if build_server is available.
+          ssh root@${{build_server}} "hostname"
+          # prepare remote working directory
+          ssh root@${{build_server}} "mkdir ${{rwd}}"
+
+          # clone git repository with source code
+          ssh root@${{build_server}} \
+            "git clone https://github.com/Tendrl/{package_name} ${{rwd}}/{package_name}"
+          # checkout the desired branch
+          ssh root@${{build_server}} \
+            "cd ${{rwd}}/{package_name}; \
+            branch=\$(git ls-remote --heads origin '${{BRANCH}}' | \
+              sed 's/[a-z0-9]*\trefs\/heads\///' | \
+              grep -v '/v' | sort | tail -1); \
+            git checkout \${{branch}}; \
+            git status;"
+
+          # build srpm package
+          ssh root@${{build_server}} \
+            "cd ${{rwd}}/{package_name}; \
+            {build_commands}; \
+            ls -l;"
+
+          # prepare copr configuration
+          scp {copr_config} root@${{build_server}}:${{rwd}}/copr.conf
+
+          # build package in copr
+          ssh root@${{build_server}} \
+            "copr-cli --config ${{rwd}}/copr.conf build ${{TARGET_REPO}} ${{rwd}}/{package_name}/tendrl-{package_name}*.src.rpm"
+
+    publishers:
+      - trigger-parameterized-builds:
+          - project: 'tendrl-build-X-build_server-{project_name}-teardown'
+            property-file: env.sh
+            condition: ALWAYS
+
+
+- project:
+    name: 'release'
+    project_name: 'release'
+    target_repo: 'release'
+    branch: 'release/*'
+    build_commands: 'make dist && make srpm'
+    copr_config: '~/.copr-tendrl.conf'
+    copr_user: 'tendrl'
+    run_package_validation: true
+    triggers:
+      - github
+      - pollscm:
+          cron: 'H H * * *'
+          ignore-post-commit-hooks: false
+    scm:
+      - git:
+          url: 'https://github.com/Tendrl/{package_name}'
+          #branches:
+          #  - "refs/heads/{branch}"
+          refspec: "+refs/heads/{branch}:refs/remotes/origin/{branch}"
+          basedir: tendrl-{package_name}
+          skip-tag: true
+          wipe-workspace: true
+    jobs:
+      - "tendrl-build-0-{project_name}"
+      - "tendrl-build-1-{project_name}-{package_name}"
+      - "tendrl-build-X-build_server-{project_name}-prepare"
+      - "tendrl-build-X-build_server-{project_name}-teardown"
+    package_name:
+      - api
+      - commons
+      - gluster-integration
+      - monitoring-integration
+      - node-agent
+      - notifier
+      - ui
+    package_build_job_list:
+      - "tendrl-build-1-{project_name}-api"
+      - "tendrl-build-1-{project_name}-commons"
+      - "tendrl-build-1-{project_name}-gluster-integration"
+      - "tendrl-build-1-{project_name}-monitoring-integration"
+      - "tendrl-build-1-{project_name}-node-agent"
+      - "tendrl-build-1-{project_name}-notifier"
+      - "tendrl-build-1-{project_name}-ui"
+
+
+- project:
+    name: 'master'
+    project_name: 'master'
+    target_repo: 'tendrl'
+    branch: 'master'
+    build_commands: 'make snapshot'
+    copr_config: '~/.copr-tendrl.conf'
+    copr_user: 'tendrl'
+    run_package_validation: true
+    triggers:
+      - github
+      - pollscm:
+          cron: 'H H * * *'
+          ignore-post-commit-hooks: false
+    scm:
+      - git:
+          url: 'https://github.com/Tendrl/{package_name}'
+          branches:
+            - "refs/heads/{branch}"
+          basedir: tendrl-{package_name}
+          skip-tag: true
+          wipe-workspace: true
+    jobs:
+      - "tendrl-build-0-{project_name}"
+      - "tendrl-build-1-{project_name}-{package_name}"
+      - "tendrl-build-X-build_server-{project_name}-prepare"
+      - "tendrl-build-X-build_server-{project_name}-teardown"
+    package_name:
+      - api
+      - commons
+      - gluster-integration
+      - monitoring-integration
+      - node-agent
+      - notifier
+      - ui
+    package_build_job_list:
+      - "tendrl-build-1-{project_name}-api"
+      - "tendrl-build-1-{project_name}-commons"
+      - "tendrl-build-1-{project_name}-gluster-integration"
+      - "tendrl-build-1-{project_name}-monitoring-integration"
+      - "tendrl-build-1-{project_name}-node-agent"
+      - "tendrl-build-1-{project_name}-notifier"
+      - "tendrl-build-1-{project_name}-ui"
