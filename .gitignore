@@ -1,0 +1,5 @@
+# vim temporary files
+.*.swp
+*~
+# Jenkins Job builder configuration
+jenkins-config.ini
