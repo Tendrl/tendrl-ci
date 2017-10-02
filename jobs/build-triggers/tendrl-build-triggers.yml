@@ -149,6 +149,8 @@
       - monitoring-integration
       - node-agent
       - notifier
+      - tendrl-ansible:
+          package_prefix: ""
       - ui
     package_build_job_list:
       - "tendrl-build-1-{project_name}-api"
@@ -157,6 +159,7 @@
       - "tendrl-build-1-{project_name}-monitoring-integration"
       - "tendrl-build-1-{project_name}-node-agent"
       - "tendrl-build-1-{project_name}-notifier"
+      - "tendrl-build-1-{project_name}-tendrl-ansible"
       - "tendrl-build-1-{project_name}-ui"
 
 
@@ -194,6 +197,8 @@
       - monitoring-integration
       - node-agent
       - notifier
+      - tendrl-ansible:
+          package_prefix: ""
       - ui
     package_build_job_list:
       - "tendrl-build-1-{project_name}-api"
@@ -202,4 +207,5 @@
       - "tendrl-build-1-{project_name}-monitoring-integration"
       - "tendrl-build-1-{project_name}-node-agent"
       - "tendrl-build-1-{project_name}-notifier"
+      - "tendrl-build-1-{project_name}-tendrl-ansible"
       - "tendrl-build-1-{project_name}-ui"
