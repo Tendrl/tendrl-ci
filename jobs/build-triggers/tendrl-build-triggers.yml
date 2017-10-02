@@ -11,6 +11,7 @@
       Managed by Jenkins Job Builder. Do not edit via web.<br>
     project-type: freestyle
     copr_config: '~/.config/copr'
+    package_prefix: "tendrl-"
     defaults: global
     disabled: false
     concurrent: false
@@ -43,7 +44,7 @@
           echo "BRANCH: ${{BRANCH}}"
           echo "TARGET_REPO: ${{TARGET_REPO}}"
           # prepare unique identifier for this build (BUILD_HASH)
-          export BUILD_HASH=$(mktemp -du "build-{target_repo}-tendrl-{package_name}.XXXXXXXXXX")
+          export BUILD_HASH=$(mktemp -du "build-{target_repo}-{package_prefix}{package_name}.XXXXXXXXXX")
           echo "BUILD_HASH=${{BUILD_HASH}}" > ${{WORKSPACE}}/env.sh
           # "reserve" build server for this job
           echo "${{BUILD_HASH}}" >> ${{HOME}}/build_server_{project_name}_used_by
@@ -101,7 +102,7 @@
 
           # build package in copr
           ssh root@${{build_server}} \
-            "copr-cli --config ${{rwd}}/copr.conf build ${{TARGET_REPO}} ${{rwd}}/{package_name}/tendrl-{package_name}*.src.rpm"
+            "copr-cli --config ${{rwd}}/copr.conf build ${{TARGET_REPO}} ${{rwd}}/{package_name}/{package_prefix}{package_name}*.src.rpm"
 
     publishers:
       - trigger-parameterized-builds:
