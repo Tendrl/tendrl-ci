@@ -162,6 +162,7 @@
       - "tendrl-build-1-{project_name}-node-agent"
       - "tendrl-build-1-{project_name}-notifier"
       - "tendrl-build-1-{project_name}-tendrl-ansible"
+      - "tendrl-build-1-{project_name}-tendrl-selinux"
       - "tendrl-build-1-{project_name}-ui"
 
 
@@ -212,4 +213,5 @@
       - "tendrl-build-1-{project_name}-node-agent"
       - "tendrl-build-1-{project_name}-notifier"
       - "tendrl-build-1-{project_name}-tendrl-ansible"
+      - "tendrl-build-1-{project_name}-tendrl-selinux"
       - "tendrl-build-1-{project_name}-ui"
