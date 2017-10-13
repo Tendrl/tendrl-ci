@@ -151,6 +151,8 @@
       - notifier
       - tendrl-ansible:
           package_prefix: ""
+      - tendrl-selinux:
+          package_prefix: ""
       - ui
     package_build_job_list:
       - "tendrl-build-1-{project_name}-api"
@@ -198,6 +200,8 @@
       - node-agent
       - notifier
       - tendrl-ansible:
+          package_prefix: ""
+      - tendrl-selinux:
           package_prefix: ""
       - ui
     package_build_job_list:
