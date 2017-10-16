@@ -151,6 +151,8 @@
       - notifier
       - tendrl-ansible:
           package_prefix: ""
+      - tendrl-selinux:
+          package_prefix: ""
       - ui
     package_build_job_list:
       - "tendrl-build-1-{project_name}-api"
@@ -160,6 +162,7 @@
       - "tendrl-build-1-{project_name}-node-agent"
       - "tendrl-build-1-{project_name}-notifier"
       - "tendrl-build-1-{project_name}-tendrl-ansible"
+      - "tendrl-build-1-{project_name}-tendrl-selinux"
       - "tendrl-build-1-{project_name}-ui"
 
 
@@ -199,6 +202,8 @@
       - notifier
       - tendrl-ansible:
           package_prefix: ""
+      - tendrl-selinux:
+          package_prefix: ""
       - ui
     package_build_job_list:
       - "tendrl-build-1-{project_name}-api"
@@ -208,4 +213,5 @@
       - "tendrl-build-1-{project_name}-node-agent"
       - "tendrl-build-1-{project_name}-notifier"
       - "tendrl-build-1-{project_name}-tendrl-ansible"
+      - "tendrl-build-1-{project_name}-tendrl-selinux"
       - "tendrl-build-1-{project_name}-ui"
