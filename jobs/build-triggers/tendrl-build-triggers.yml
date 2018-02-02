@@ -111,7 +111,8 @@
             condition: ALWAYS
 
       - email:
-          recipients: dahorak@redhat.com
+          recipients: dahorak@redhat.com sds-mgmt-dev@redhat.com
+          send-to-individuals: false
             
 
 - project:
