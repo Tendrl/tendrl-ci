@@ -84,7 +84,8 @@
             "git clone https://github.com/Tendrl/{package_name} ${{rwd}}/{package_name}"
           # checkout the desired branch
           ssh root@${{build_server}} \
-            "cd ${{rwd}}/{package_name}; \
+            "set -xe; \
+            cd ${{rwd}}/{package_name}; \
             branch=\$(git ls-remote --heads origin '${{BRANCH}}' | \
               sed 's/[a-z0-9]*\trefs\/heads\///' | \
               grep -v '/v' | sort | tail -1); \
@@ -93,7 +94,8 @@
 
           # build srpm package
           ssh root@${{build_server}} \
-            "cd ${{rwd}}/{package_name}; \
+            "set -xe; \
+            cd ${{rwd}}/{package_name}; \
             {build_commands}; \
             ls -l;"
 
