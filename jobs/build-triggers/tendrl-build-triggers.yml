@@ -115,7 +115,7 @@
       - email:
           recipients: dahorak@redhat.com sds-mgmt-dev@redhat.com
           send-to-individuals: false
-            
+
 
 - project:
     name: 'release'
@@ -134,8 +134,6 @@
     scm:
       - git:
           url: 'https://github.com/Tendrl/{package_name}'
-          #branches:
-          #  - "refs/heads/{branch}"
           refspec: "+refs/heads/{branch}:refs/remotes/origin/{branch}"
           basedir: tendrl-{package_name}
           skip-tag: true
